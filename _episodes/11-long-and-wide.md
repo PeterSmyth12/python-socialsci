@@ -1,219 +1,110 @@
 ---
 title: "Wide and long data formats"
 teaching: 20
-exercises: 15
+exercises: 0
 questions:
 - "What are long and Wide formats?"
 - "Why would I want to change between them?"
 objectives:
-- "Explain difference between long and wide foramts and why each might be used"
-- "Illustrate how to change between formats using the `melt` and `pivot` methods"
+- "Explain difference between long and wide formats and why each might be used"
+- "Illustrate how to change between formats using the `melt()` and `pivot()` methods"
 keypoints:
-- "The `melt` method can be used to change from wide to long format"
-- "The `pivot` method can be used to change from the long to wide format"
+- "The `melt()` method can be used to change from wide to long format"
+- "The `pivot()` method can be used to change from the long to wide format"
 - "Aggregations are best done from data in the long format."
 ---
 
 ## Wide and long data formats
 
-In the SN7577 dataset that we have been using there is a group of columns which record which daily newspapers each respondent reads. Despite the un-informative names like 'daily1' each column refers to a current UK daily national or local newspaper. 
+In the Farms table the F14_items_owned column contains a list of the items owned by each Farmer. The Items_wide.csv filehas this same information but now each type of item has its own column.
+This format is more in keeping with the `Tidy` principles whereby each variable has its own column. The downside is that it is not much use for aggregation type functions.
 
-Whether the paper is read or not is recorded using the values of 0 or 1 as a boolean indicator. The advantage of using a column for each paper means that should a respondent read multiple newpapers, all of the required information can still be recorded in a single record.
-
-Recording information in this 'wide' format is not always beneficial when trying to analyse the data.
-
-Pandas provides methods for converting data from 'wide' to 'long' format and from 'long' to 'wide' format
-
-The SN7577 dataset does not contain a variable that can be used to uniquely identify a row. This is often referred to as a 'primary key' field (or column).
-
-A dataset doesn't need to have such a key. None of the work we have done so far has required it. 
-
-When we create a pandas dataframe by importing a csv file, we have seen that pandas will create an index  for the rows. This index can be used a bit like a key field, but as we have seen there can be problems with the index when we concatenate two dataframes together.
-
-In the version of SN7577 that we are going to use to demonstrate long and wide formats we will add a new variable with the name of 'Id' and we will restrict the other columns to those starting with the word 'daily'.
-
-~~~
-import pandas as pd
-df_SN7577 = pd.read_csv("SN7577.tab", sep='\t')
-~~~
-{: .python}
-
-We will create a new dataframe with a single column of 'Id'. 
-
-~~~
-# create an 'Id' column
-df_papers1 = pd.DataFrame(pd.Series(range(1,1287)),index=None,columns=['Id'])
-~~~
-{: .python}
-
-Using the range function I can create values of Id starting with 1 and going upto 1286 (remember the second parameter to range is one past the last value used.) I have explicitly coded this value because I knew how many rows were in the dataset. If I didn't, I could have used 
-
-~~~
-len(df_SN7577.index) +1
-~~~
-{: .python}
-
-We will create a 2nd dataframe, based on SN7577 but containing only the columns starting with the word 'daily'. 
-
-There are several ways odf doing this.
-
-we could use the `iloc` method and provide the index values of the range of columns we want.
-
-~~~
-df_papers2 = df_SN7577.iloc[:,118:143]
-~~~
-{: .python}
-
-This isn't really very practical. I would need to know the position of all of the columns of interest. They may not be contiguous. This method would be very prone to human error.
-
-We could use a regular expression. Regular expressions is a very complex topic which we won't be covering. Using the `filter` method the code
-
-~~~
-df_papers2 = df_SN7577.filter(regex= '^daily')
-~~~
-{: .python}
-
-will do want we want. '^daily' is a simple regular exprerssion which says 'startswith' the characters 'daily'
-
-A simpler way is to use the 'like' parameter of the `filter` method.
-
-~~~
-df_papers2 = df_SN7577.filter(like= 'daily')
-~~~
-{: .python}
-
-The value supplied to 'like' can occur anywhere in the column name to be matched (and therefore selected)
-
-To create the dataframe that we will use, we will concatenate the two dataframes we have created. 
-
-~~~
-df_papers = pd.concat([df_papers1, df_papers2], axis = 1)
-print(df_papers.index)
-print(df_papers.columns)
-~~~
-{: .python}
-
-We use 'axis = 1' because we are joining by columns not rows which is the default.
+What we would like to do is to create a row for each type of item within each Farm along with an indication of whether or not the Farm has that item.
+This process is referred to as converting from 'wide' to 'long'
 
 
 ## From 'wide' to 'long'
 
-Just to make the displays more maneagable we will use only the first eight 'daily' columns
+In the Items_wide.csv file there are 20 columns, The 'Id' column, the original 'F14_items_owned' column and then 18 columns one for each possible item. 
+The values in thes columns are 1 or 0 to indicate whether the item is owned or not.
+
+When we do the conversion we need to keep the 'Id' column, we are not really interested in the original 'F14_items_owned' column so we 
+will ignore it. The remaining 18 columns for the different Item types we want to `melt` into a single column using the original column name as the value. In addition we need a new column which will contain the original value from the Id/Item intersection.
+
 
 ~~~
-## using df_papers
-daily_list = ['daily1', 'daily2','daily3', 'daily4','daily5', 'daily6','daily7', 'daily8']
+## using 'Items_wide.csv'
 
-df_daily_papers_long = pd.melt(df_papers, id_vars = ['Id'], value_vars = daily_list)
+df_Items_wide = pd.read_csv("Items_wide.csv")  # read the Iems_wide.csv file
+item_list = df_Items_wide.columns[2:20]        # create a list of the last 18 column names
+item_list                                      # check we have selected the right values
+df_Items_wide.shape                            # check the shape
 
-# by default the new columns created will be called 'variable' which is the name of the 'daily'
-# and 'value' which is the value of that 'daily' for that 'Id'. So we will rename the columns
+df_Items_long = pd.melt(df_Items_wide,  id_vars = ['Id'], value_vars = item_list ) # perform the melt
+df_Items_long.to_csv("df_Items_long")                                              # optional write the output to a csv file
+df_Items_long.head()                                                               # check the output
+df_Items_long.shape                                                                # check the shape
 
-df_daily_papers_long.columns = ['Id','Daily_paper','Value']
-df_daily_papers_long
+# by default the new columns created will be called 'variable' which contains the names of the items
+# and 'value' which is the value of that 'item' for that 'Id'. 
+# We can rename these columns to something more meaningful 
+
+df_Items_long.columns = ['Id','Item_owned','Yes_No']
+df_Items_long
 ~~~
-{: .python}
+{: .language-python}
 
-We now have a dataframe that we can `groupby`. 
+We now have a Dataframe that we can `groupby`.
 
-We want to `groupby` the 'Daily_paper' and them sum the 'Value'.
-
-~~~
-a = df_daily_papers_long.groupby('Daily_paper')['Value'].sum()
-a
-~~~
-{: .python}
-
-## From Long to Wide 
-
-The process can be reversed by using the `pivot` method. 
-Here we need to indicate which column (or columns) remain fixed (this will become an index in the new dataframe), which column contains the values which are to become column names and which column contains the values for the columns.
-
-In our case we want to use the 'Id' column as the fixed column, the 'Daily_paper' column contains the column names and the 'Value' column contains the values.
+We want to `groupby` the `Item_owned` and then sum the `Yes_No`.
 
 ~~~
-df_daily_papers_wide = df_daily_papers_long.pivot(index = 'Id', columns = 'Daily_paper', values = 'Value')
-~~~
-{: .python}
-
-We can change our 'Id' index back to an ordinary column with 
+df_Items_long.groupby('Item_owned')['Yes_No'].sum()
 
 ~~~
-df_daily_papers_wide.reset_index(level=0, inplace=True)
-~~~
-{: .python}
+{: .language-python}
 
-> ## Exercise
-> 
-> 1. Find out how many people take each of the daily newspapers by Title.
-> 2. Which titles don't appear to be read by anyone?
-> 
-> There is a file called Newspapers.csv which lists all of the newpapers Titles along with the corresponding 'daily' value
-> 
-> Help : Newspapers.csv cotains both daily and Sunday newspapers. you can filter out the Sunday papers with the following code;
-> 
-> 
-> ~~~
-> df_newspapers = df_newspapers[(df_newspapers.Column_name.str.startswith('daily'))]
-> ~~~
-> {: .python}
-> 
-> > ## Solution
-> > 
-> > 1. Read in Newspapers.csv file and keep only the dailies.
-> > 
-> > ~~~
-> > df_newspapers = pd.read_csv("Newspapers.csv")
-> > df_newspapers = df_newspapers[(df_newspapers.Column_name.str.startswith('daily'))]
-> > df_newspapers
-> > ~~~
-> > {: .python}
-> > 
-> > 2. Create the df_papers dataframe as we did before.
-> > 
-> > ~~~
-> > import pandas as pd
-> > df_SN7577 = pd.read_csv("SN7577.tab", sep='\t')
-> > #create an 'Id' column
-> > df_papers1 = pd.DataFrame(pd.Series(range(1,1287)),index=None,columns=['Id'])
-> > df_papers2 = df_SN7577.filter(like= 'daily')
-> > df_papers = pd.concat([df_papers1, df_papers2], axis = 1)
-> > df_papers
-> > ~~~~
-> > {: .python}
-> > 
-> > 3. Create a list of all of the dailies, one way would be
-> > 
-> > ~~~
-> > daily_list = []
-> > for i in range(1,26):
-> >     daily_list.append('daily'+str(i))  
-> > ~~~
-> > {: .python}
-> > 
-> > 4. Pass the list as the 'value_vars' parameter to the `melt` method
-> > 
-> > 
-> > ~~~
-> > #use melt to create df_daily_papers_long  
-> > df_daily_papers_long = pd.melt(df_papers, id_vars = ['Id'], value_vars = daily_list )
-> > #Change the column names
-> > df_daily_papers_long.columns = ['Id','Daily_paper','Value']
-> > ~~~
-> > {: .python}
-> > 
-> > 5. `merge` the two dataframes with a left join, because we want all of the Newspaper Titles to be included.
-> > 
-> > ~~~
-> > df_papers_taken = pd.merge(df_newspapers, df_daily_papers_long, how='left', left_on = 'Column_name',right_on = 'Daily_paper')
-> > ~~~
-> > {: .python}
-> > 
-> > 6. Then `groupby` the 'Title' and sum the 'Value'
-> > 
-> > ~~~
-> > df_papers_taken.groupby('Title')['Value'].sum()
-> > ~~~
-> > {: .python}
-> {: .solution}
-{: .challenge}
+~~~
+Item_owned
+bicycle         201
+car               5
+computer          4
+cow_cart         30
+cow_plough       92
+electricity      33
+fridge           18
+lorry             7
+mobile_phone    214
+motorcyle        52
+radio           202
+sofa_set         20
+solar_panel     136
+solar_torch     122
+sterio           32
+table           125
+television       60
+tractor           2
+~~~
+{: output}
+
+## From Long to Wide
+
+The process can be reversed by using the `pivot()` method.
+Here we need to indicate which column (or columns) remain fixed (this will become an index in the new Dataframe), 
+which column contains the values which are to become column names and which column contains the values for the columns.
+
+In our case we want to use the `Id` column as the fixed column, the `Item_owned` column contains the column names and the `Yes_No` column contains the values.
+
+~~~
+df_Items_wide_again = df_Items_long.pivot(index = 'Id', columns = 'Item_owned', values = 'Yes_No')
+df_Items_wide_again.to_csv("Items_wide_again.csv")
+~~~
+{: .language-python}
+
+We can change our `Id` index back to an ordinary column with
+
+~~~
+df_Items_wide_again.reset_index(level=0, inplace=True)
+~~~
+{: .language-python}
+
